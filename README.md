@@ -1,266 +1,142 @@
-{
- "cells": [
-  {
-   "cell_type": "markdown",
-   "metadata": {},
-   "source": [
-    "## Modules"
-   ]
-  },
-  {
-   "cell_type": "code",
-   "execution_count": 1,
-   "metadata": {},
-   "outputs": [],
-   "source": [
-    "import numpy as np\n",
-    "import pandas as pd\n",
-    "from matplotlib import pyplot as plt"
-   ]
-  },
-  {
-   "cell_type": "markdown",
-   "metadata": {},
-   "source": [
-    "## Read in Data"
-   ]
-  },
-  {
-   "cell_type": "code",
-   "execution_count": 40,
-   "metadata": {},
-   "outputs": [],
-   "source": [
-    "data = pd.read_csv('train.csv')\n",
-    "#data.head()"
-   ]
-  },
-  {
-   "cell_type": "markdown",
-   "metadata": {},
-   "source": [
-    "## Transform Data"
-   ]
-  },
-  {
-   "cell_type": "code",
-   "execution_count": 41,
-   "metadata": {},
-   "outputs": [],
-   "source": [
-    "data=np.array(data)\n",
-    "m, n = data.shape\n",
-    "np.random.shuffle(data)\n",
-    "\n",
-    "data_dev = data[0:1000].T\n",
-    "Y_dev = data_dev[0]\n",
-    "X_dev = data_dev[1:n]\n",
-    "X_dev = X_dev / 255.\n",
-    "\n",
-    "data_train = data[1000:m].T\n",
-    "Y_train = data_train[0]\n",
-    "X_train = data_train[1:n]\n",
-    "X_train = X_train / 255.\n"
-   ]
-  },
-  {
-   "cell_type": "markdown",
-   "metadata": {},
-   "source": [
-    "## Create NN Functions"
-   ]
-  },
-  {
-   "cell_type": "markdown",
-   "metadata": {},
-   "source": [
-    "### Initialize Parameters"
-   ]
-  },
-  {
-   "cell_type": "code",
-   "execution_count": null,
-   "metadata": {},
-   "outputs": [],
-   "source": [
-    "def init_params():\n",
-    "    W1 = np.random.rand(10, 784) - 0.5\n",
-    "    b1 = np.random.rand(10,1) - 0.5\n",
-    "    W2 = np.random.rand(10, 10) - 0.5\n",
-    "    b2 = np.random.rand(10,1) - 0.5\n",
-    "    return W1, b1, W2, b2"
-   ]
-  },
-  {
-   "cell_type": "markdown",
-   "metadata": {},
-   "source": [
-    "### Forward Propagation"
-   ]
-  },
-  {
-   "cell_type": "code",
-   "execution_count": 43,
-   "metadata": {},
-   "outputs": [],
-   "source": [
-    "def ReLU(Z):\n",
-    "    return np.maximum(0, Z)\n",
-    "\n",
-    "def softmax(Z):\n",
-    "    A = np.exp(Z) / sum(np.exp(Z))\n",
-    "    return A\n",
-    "\n",
-    "def forward_prop(W1, b1, W2, b2, X):\n",
-    "    Z1 = W1.dot(X) + b1\n",
-    "    A1 = ReLU(Z1)\n",
-    "    Z2 = W2.dot(A1) + b2\n",
-    "    A2 = softmax(Z2)\n",
-    "    return Z1, A1, Z2, A2"
-   ]
-  },
-  {
-   "cell_type": "markdown",
-   "metadata": {},
-   "source": [
-    "### Backwards Propagation"
-   ]
-  },
-  {
-   "cell_type": "code",
-   "execution_count": null,
-   "metadata": {},
-   "outputs": [],
-   "source": [
-    "def one_hot(Y):\n",
-    "    one_hot_Y = np.zeros((Y.size, Y.max() + 1))\n",
-    "    one_hot_Y[np.arange(Y.size), Y] = 1\n",
-    "    one_hot_Y = one_hot_Y.T\n",
-    "    return one_hot_Y\n",
-    "\n",
-    "def deriv_ReLU(Z):\n",
-    "    return Z > 0\n",
-    "\n",
-    "def back_prop(Z1, A1, Z2, A2, W2, X, Y):\n",
-    "    m = Y.size\n",
-    "    one_hot_Y = one_hot(Y)\n",
-    "    dZ2 = A2 - one_hot_Y\n",
-    "    dW2 = 1 / m * dZ2.dot(A1.T)\n",
-    "    db2 = 1 / m * np.sum(dZ2, 1)\n",
-    "    dZ1 = W2.T.dot(dZ2) * deriv_ReLU(Z1)\n",
-    "    dW1 = 1 / m * dZ1.dot(X.T)\n",
-    "    db1 = 1 / m * np.sum(dZ1, 1)\n",
-    "    return dW1, db1, dW2, db2"
-   ]
-  },
-  {
-   "cell_type": "markdown",
-   "metadata": {},
-   "source": [
-    "### Update Parameters"
-   ]
-  },
-  {
-   "cell_type": "code",
-   "execution_count": null,
-   "metadata": {},
-   "outputs": [],
-   "source": [
-    "def update_params( W1, b1, W2, b2, dW1, db1, dW2, db2, alpha):\n",
-    "    W1 = W1 - alpha*dW1\n",
-    "    b1 = b1 - alpha*np.reshape(db1, (10,1))\n",
-    "    W2 = W2 - alpha*dW2\n",
-    "    b2 = b2 - alpha*np.reshape(db2, (10,1))\n",
-    "    return W1, b1, W2, b2"
-   ]
-  },
-  {
-   "cell_type": "markdown",
-   "metadata": {},
-   "source": [
-    "### Gradient Descent"
-   ]
-  },
-  {
-   "cell_type": "code",
-   "execution_count": 44,
-   "metadata": {},
-   "outputs": [],
-   "source": [
-    "def get_predictions(A2):\n",
-    "    return np.argmax(A2,0)\n",
-    "\n",
-    "def get_accuracy(predictions, Y):\n",
-    "    print(predictions, Y)\n",
-    "    return np.sum(predictions==Y)/Y.size\n",
-    "\n",
-    "def gradient_descent(X, Y, iterations, alpha):\n",
-    "    W1, b1, W2, b2 = init_params()\n",
-    "    for i in range(iterations):\n",
-    "        Z1, A1, Z2, A2 = forward_prop(W1, b1, W2, b2, X)\n",
-    "        dW1, db1, dW2, db2 = back_prop(Z1, A1, Z2, A2, W2, X, Y)\n",
-    "        W1, b1, W2, b2 = update_params(W1, b1, W2, b2, dW1, db1, dW2, db2, alpha)\n",
-    "        if i % 50 ==0:\n",
-    "            print(\"iteration: \", i)\n",
-    "            print(\"Accuracy: \", get_accuracy(get_predictions(A2), Y))\n",
-    "    return W1, b1, W2, b2"
-   ]
-  },
-  {
-   "cell_type": "markdown",
-   "metadata": {},
-   "source": [
-    "## Run Training"
-   ]
-  },
-  {
-   "cell_type": "code",
-   "execution_count": 45,
-   "metadata": {},
-   "outputs": [
-    {
-     "name": "stdout",
-     "output_type": "stream",
-     "text": [
-      "iteration:  0\n",
-      "[6 3 6 ... 6 3 6] [1 5 8 ... 6 7 5]\n",
-      "Accuracy:  0.08004878048780488\n",
-      "iteration:  50\n",
-      "[1 3 3 ... 6 7 3] [1 5 8 ... 6 7 5]\n",
-      "Accuracy:  0.5167317073170732\n",
-      "iteration:  100\n",
-      "[1 3 3 ... 6 7 3] [1 5 8 ... 6 7 5]\n",
-      "Accuracy:  0.6730731707317074\n",
-      "iteration:  150\n",
-      "[1 3 3 ... 6 7 3] [1 5 8 ... 6 7 5]\n",
-      "Accuracy:  0.7414390243902439\n"
-     ]
-    }
-   ],
-   "source": [
-    "W1, b1, W2, b2 = gradient_descent(X_train, Y_train, 200, .1)"
-   ]
-  }
- ],
- "metadata": {
-  "kernelspec": {
-   "display_name": ".venv",
-   "language": "python",
-   "name": "python3"
-  },
-  "language_info": {
-   "codemirror_mode": {
-    "name": "ipython",
-    "version": 3
-   },
-   "file_extension": ".py",
-   "mimetype": "text/x-python",
-   "name": "python",
-   "nbconvert_exporter": "python",
-   "pygments_lexer": "ipython3",
-   "version": "3.11.8"
-  }
- },
- "nbformat": 4,
- "nbformat_minor": 2
-}
+---
+jupyter:
+  jupytext:
+    text_representation:
+      extension: .md
+      format_name: markdown
+      format_version: '1.3'
+      jupytext_version: 1.16.1
+  kernelspec:
+    display_name: .venv
+    language: python
+    name: python3
+---
+
+## Modules
+
+```python
+import numpy as np
+import pandas as pd
+from matplotlib import pyplot as plt
+```
+
+## Read in Data
+
+```python
+data = pd.read_csv('train.csv')
+#data.head()
+```
+
+## Transform Data
+
+```python
+data=np.array(data)
+m, n = data.shape
+np.random.shuffle(data)
+
+data_dev = data[0:1000].T
+Y_dev = data_dev[0]
+X_dev = data_dev[1:n]
+X_dev = X_dev / 255.
+
+data_train = data[1000:m].T
+Y_train = data_train[0]
+X_train = data_train[1:n]
+X_train = X_train / 255.
+
+```
+
+## Create NN Functions
+
+
+### Initialize Parameters
+
+```python
+def init_params():
+    W1 = np.random.rand(10, 784) - 0.5
+    b1 = np.random.rand(10,1) - 0.5
+    W2 = np.random.rand(10, 10) - 0.5
+    b2 = np.random.rand(10,1) - 0.5
+    return W1, b1, W2, b2
+```
+
+### Forward Propagation
+
+```python
+def ReLU(Z):
+    return np.maximum(0, Z)
+
+def softmax(Z):
+    A = np.exp(Z) / sum(np.exp(Z))
+    return A
+
+def forward_prop(W1, b1, W2, b2, X):
+    Z1 = W1.dot(X) + b1
+    A1 = ReLU(Z1)
+    Z2 = W2.dot(A1) + b2
+    A2 = softmax(Z2)
+    return Z1, A1, Z2, A2
+```
+
+### Backwards Propagation
+
+```python
+def one_hot(Y):
+    one_hot_Y = np.zeros((Y.size, Y.max() + 1))
+    one_hot_Y[np.arange(Y.size), Y] = 1
+    one_hot_Y = one_hot_Y.T
+    return one_hot_Y
+
+def deriv_ReLU(Z):
+    return Z > 0
+
+def back_prop(Z1, A1, Z2, A2, W2, X, Y):
+    m = Y.size
+    one_hot_Y = one_hot(Y)
+    dZ2 = A2 - one_hot_Y
+    dW2 = 1 / m * dZ2.dot(A1.T)
+    db2 = 1 / m * np.sum(dZ2, 1)
+    dZ1 = W2.T.dot(dZ2) * deriv_ReLU(Z1)
+    dW1 = 1 / m * dZ1.dot(X.T)
+    db1 = 1 / m * np.sum(dZ1, 1)
+    return dW1, db1, dW2, db2
+```
+
+### Update Parameters
+
+```python
+def update_params( W1, b1, W2, b2, dW1, db1, dW2, db2, alpha):
+    W1 = W1 - alpha*dW1
+    b1 = b1 - alpha*np.reshape(db1, (10,1))
+    W2 = W2 - alpha*dW2
+    b2 = b2 - alpha*np.reshape(db2, (10,1))
+    return W1, b1, W2, b2
+```
+
+### Gradient Descent
+
+```python
+def get_predictions(A2):
+    return np.argmax(A2,0)
+
+def get_accuracy(predictions, Y):
+    print(predictions, Y)
+    return np.sum(predictions==Y)/Y.size
+
+def gradient_descent(X, Y, iterations, alpha):
+    W1, b1, W2, b2 = init_params()
+    for i in range(iterations):
+        Z1, A1, Z2, A2 = forward_prop(W1, b1, W2, b2, X)
+        dW1, db1, dW2, db2 = back_prop(Z1, A1, Z2, A2, W2, X, Y)
+        W1, b1, W2, b2 = update_params(W1, b1, W2, b2, dW1, db1, dW2, db2, alpha)
+        if i % 50 ==0:
+            print("iteration: ", i)
+            print("Accuracy: ", get_accuracy(get_predictions(A2), Y))
+    return W1, b1, W2, b2
+```
+
+## Run Training
+
+```python
+W1, b1, W2, b2 = gradient_descent(X_train, Y_train, 200, .1)
+```
